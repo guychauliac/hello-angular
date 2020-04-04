@@ -7,18 +7,26 @@ phases:
     commands:
       - echo Installing source NPM dependencies...
       - export ZIP_FILE=hello-angular-$CODEBUILD_RESOLVED_SOURCE_VERSION.zip
+      - export S3_ZIP_FILE=s3://guy-chauliac-build-artefacts/$ZIP_FILE
       
-      - npm install
-      - npm install -g @angular/cli
   build:
     commands:
       - echo Build started on `date`
-      - ng build --prod --aot
+      - |
+        aws s3 ls $S3_ZIP_FILE
+         if [[ $? -ne 0 ]]; then
+           npm install
+           npm install -g @angular/cli
+           ng build --prod --aot
+           zip -r $ZIP_FILE dist/*
+           aws s3 cp $ZIP_FILE s3://guy-chauliac-build-artefacts/$ZIP_FILE
+         else 
+           aws s3 cp s3://guy-chauliac-build-artefacts/$ZIP_FILE $ZIP_FILE
+           unzip $ZIP_FILE
+         fi
   post_build:
      commands:
       - echo Build completed on `date`
-      - zip -r $ZIP_FILE dist/*
-      - aws s3 cp $ZIP_FILE s3://guy-chauliac-build-artefacts/$ZIP_FILE 
 artifacts:
   files:
       - '**/*'
